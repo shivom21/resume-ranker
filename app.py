@@ -4,7 +4,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Load the SpaCy model
-nlp = spacy.load("en_core_web_sm")
+try:
+    nlp = spacy.load("en_core_web_sm")
+except:
+    st.error("SpaCy model 'en_core_web_sm' not found. Please ensure it is installed.")
 
 # Title of the app
 st.title("AI-Powered Resume Ranking App 🚀")
@@ -54,5 +57,6 @@ if st.button("Rank Resumes") and job_description and uploaded_files:
     st.subheader("Ranked Resumes (Best Match First):")
     for idx in ranked_indices:
         st.write(f"**{resume_names[idx]}** — Similarity Score: {similarity_scores[idx]:.4f}")
+
 else:
     st.info("Please enter a job description and upload at least one resume to start ranking.")
