@@ -1,4 +1,0 @@
-streamlit
-spacy
-scikit-learn
-pymupdf  # for PDF processing
