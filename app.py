@@ -2,42 +2,46 @@ import streamlit as st
 import spacy
 import subprocess
 import sys
-import PyPDF2
+import pandas as pd
+import fitz  # PyMuPDF for PDF extraction
+import docx
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ---------------------------
-# Auto-install SpaCy model if missing
+# Ensure SpaCy model is installed
 # ---------------------------
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
-    st.warning("Downloading missing SpaCy model (en_core_web_sm)...")
     subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
     nlp = spacy.load("en_core_web_sm")
 
 # ---------------------------
-# Function to extract text from PDFs
+# Helper functions
 # ---------------------------
+
 def extract_text_from_pdf(pdf_file):
-    reader = PyPDF2.PdfReader(pdf_file)
+    """Extract text from a PDF file."""
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     text = ""
-    for page in reader.pages:
-        text += page.extract_text() if page.extract_text() else ""
+    for page in doc:
+        text += page.get_text("text")
     return text
 
-# ---------------------------
-# Text Preprocessing
-# ---------------------------
+def extract_text_from_docx(docx_file):
+    """Extract text from a DOCX file."""
+    doc = docx.Document(docx_file)
+    return "\n".join([para.text for para in doc.paragraphs])
+
 def preprocess_text(text):
+    """Preprocess text: Tokenization, Stopword Removal, Lemmatization."""
     doc = nlp(text.lower())
     tokens = [token.lemma_ for token in doc if not token.is_stop and not token.is_punct and not token.like_num]
     return " ".join(tokens)
 
-# ---------------------------
-# Resume Ranking Logic
-# ---------------------------
 def rank_resumes(job_description, resumes):
+    """Compute similarity between job description and resumes."""
     processed_jd = preprocess_text(job_description)
     processed_resumes = [preprocess_text(resume) for resume in resumes]
 
@@ -52,22 +56,46 @@ def rank_resumes(job_description, resumes):
 # ---------------------------
 # Streamlit UI
 # ---------------------------
-st.title("AI Resume Ranker 🚀")
-st.write("Upload resumes and a job description to rank the best matches.")
 
-job_description = st.text_area("Job Description", height=200)
-uploaded_files = st.file_uploader("Upload Resumes (PDF format):", type=["pdf"], accept_multiple_files=True)
+st.set_page_config(page_title="Resume Ranker", page_icon="📄", layout="wide")
 
-if st.button("Rank Resumes"):
+st.title("📄 Resume Ranker 🚀")
+st.write("Upload resumes and enter job details to find the best match!")
+
+# Job Description Input
+job_description = st.text_area("📝 Job Description", height=200)
+
+# Additional Inputs
+technical_skills = st.text_input("🛠️ Required Technical Skills (comma-separated)")
+soft_skills = st.text_input("🤝 Required Soft Skills (comma-separated)")
+qualifications = st.text_input("🎓 Required Qualifications (comma-separated)")
+
+# File Upload
+uploaded_files = st.file_uploader("📂 Upload Resumes (PDF/DOCX):", type=["pdf", "docx"], accept_multiple_files=True)
+
+if st.button("🔍 Rank Resumes"):
     if not job_description:
-        st.error("Please add a job description.")
+        st.error("⚠️ Please enter a job description.")
     elif not uploaded_files:
-        st.error("Please upload at least one resume.")
+        st.error("⚠️ Please upload at least one resume.")
     else:
-        resumes = [extract_text_from_pdf(file) for file in uploaded_files]
-        ranked = rank_resumes(job_description, resumes)
+        resume_texts = []
+        for file in uploaded_files:
+            if file.name.endswith(".pdf"):
+                resume_texts.append(extract_text_from_pdf(file))
+            elif file.name.endswith(".docx"):
+                resume_texts.append(extract_text_from_docx(file))
 
-        st.subheader("Top Matches:")
+        ranked = rank_resumes(job_description, resume_texts)
+
+        st.subheader("🏆 Ranked Resumes:")
+        results = []
         for idx, (resume, score) in enumerate(ranked, 1):
             st.markdown(f"**Rank {idx}** (Score: {score:.2f})")
-            st.text_area("Extracted Resume Text", resume, height=150)
+            st.text_area("Resume Extract", resume[:500] + "...", height=150)  # Show first 500 chars
+            results.append({"Rank": idx, "Score": round(score, 2), "Resume": resume[:500]})
+
+        # Download results as CSV
+        df = pd.DataFrame(results)
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(label="📥 Download Results", data=csv, file_name="resume_ranking.csv", mime="text/csv")
