@@ -1,30 +1,35 @@
 import streamlit as st
 import spacy
-import fitz  # PyMuPDF for PDF processing
+import subprocess
+import sys
+import PyPDF2
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Load spaCy model
+# ---------------------------
+# Ensure spaCy model is installed
+# ---------------------------
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
-    st.error("SpaCy model not found. Please install with `python -m spacy download en_core_web_sm`.")
+    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+    nlp = spacy.load("en_core_web_sm")
 
-# Helper function to extract text from PDF
-def extract_text_from_pdf(file):
-    doc = fitz.open(stream=file.read(), filetype="pdf")
+# ---------------------------
+# Helper functions
+# ---------------------------
+def extract_text_from_pdf(uploaded_file):
+    pdf_reader = PyPDF2.PdfReader(uploaded_file)
     text = ""
-    for page in doc:
-        text += page.get_text()
+    for page in pdf_reader.pages:
+        text += page.extract_text() + "\n"
     return text
 
-# Preprocess text
 def preprocess_text(text):
     doc = nlp(text.lower())
     tokens = [token.lemma_ for token in doc if not token.is_stop and not token.is_punct and not token.like_num]
     return " ".join(tokens)
 
-# Rank resumes based on job description
 def rank_resumes(job_description, resumes):
     processed_jd = preprocess_text(job_description)
     processed_resumes = [preprocess_text(resume) for resume in resumes]
@@ -37,11 +42,16 @@ def rank_resumes(job_description, resumes):
     ranked_resumes = sorted(zip(resumes, similarities), key=lambda x: x[1], reverse=True)
     return ranked_resumes
 
+# ---------------------------
 # Streamlit UI
-st.title("AI Resume Screening")
-st.write("Upload resumes and provide job description to rank candidates.")
+# ---------------------------
+st.title("AI-Powered Resume Screening 🚀")
+st.write("Upload resumes (PDF), enter job description, and get ranked results.")
 
 job_description = st.text_area("Job Description", height=150)
+skills = st.text_input("Required Skills (comma-separated)")
+qualifications = st.text_input("Required Qualifications (comma-separated)")
+
 uploaded_files = st.file_uploader("Upload Resumes (PDF format):", type=["pdf"], accept_multiple_files=True)
 
 if st.button("Rank Resumes"):
@@ -56,3 +66,4 @@ if st.button("Rank Resumes"):
         st.subheader("Top Matches:")
         for idx, (resume, score) in enumerate(ranked, 1):
             st.markdown(f"**Rank {idx}** (Score: {score:.2f})")
+            st.text_area("Resume", resume[:500] + "...", height=150)  # Show first 500 chars
