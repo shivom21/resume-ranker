@@ -1,6 +1,4 @@
 streamlit
 spacy
 scikit-learn
-pandas
-PyMuPDF
-python-docx
+pymupdf  # for PDF processing
