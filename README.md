@@ -7,10 +7,8 @@ This is a simple AI-powered resume ranking app using **Streamlit**.
 - Enter **Job Description**
 - **AI ranks resumes** based on job fit
 
-## 📌 How to Deploy on Streamlit Cloud:
-1. **Fork this repo** or upload files to GitHub
-2. Go to [Streamlit Cloud](https://share.streamlit.io/)
-3. Click **New App** → Select your GitHub repo
-4. Set **Main File** as `app.py`
-5. Click **Deploy** 🚀
+## AI-Powered Resume Screening and Ranking System  
+
+[Click here to access the application 🚀](https://huggingface.co/spaces/shivomb20/AI-Powered_Resume_Screening_and_Ranking_System)
+
 
